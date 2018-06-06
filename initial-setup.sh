@@ -242,16 +242,28 @@ echo "- mysql-server"
 echo "- fail2ban"
 echo
 
-apt install -y git exim4 nginx php7.0-fpm mysql-server fail2ban
+apt install -y git exim4 nginx php7.2 php7.2-fpm mysql-server fail2ban
 
 echo 
 echo "The script will now download and install the latest version of certbot-auto"
 
+
 wget https://dl.eff.org/certbot-auto
 chmod a+x certbot-auto
 mv ./certbot-auto /usr/local/sbin/
-certbot-auto
 
+#certbot-auto
+
+
+
+echo
+echo "The script will now install nvm"
+echo
+
+curl -sL https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh -o install_nvm.sh
+chmod a+x install_nvm.sh
+install_nvm.sh
+source ~/.profile
 ######################################################################################################
 # Configure software
 
@@ -300,22 +312,5 @@ service nginx restart
 echo "Done"
 echo
 echo
-echo "The script needs to obtain an SSL cert to continue setup. Please follow the prompts that follow."
-echo
-read -n 1 -s -p "Press any key to continue"
 
-########################################################################
-# SSL Certificate
-
-clear
-echo "=============="
-echo "SSL Certifcate"
-echo "=============="
-echo
-certbot-auto certonly -a webroot --webroot-path=/var/www/html -d ${HOSTNAME_FULL}
-echo
-echo "Installing sertificate:"
-sed -i "s/#__COMMENT__//g" /etc/nginx/sites-available/default
-service nginx reload
-echo "Done"
 
