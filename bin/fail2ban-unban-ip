@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$SCRIPT_DIR/../lib/common.sh"
+
+require_cmd fail2ban-client
+
+usage() {
+  cat <<EOF
+Usage:
+  $(basename "$0") IP
+  $(basename "$0") JAIL IP
+
+Examples:
+  $(basename "$0") 1.2.3.4
+  $(basename "$0") sshd 1.2.3.4
+EOF
+  exit 1
+}
+
+if [[ $# -eq 1 ]]; then
+  IP="$1"
+  TARGET_JAIL=""
+elif [[ $# -eq 2 ]]; then
+  TARGET_JAIL="$1"
+  IP="$2"
+else
+  usage
+fi
+
+# Basic IP sanity check (not perfect, just prevents total nonsense)
+if ! [[ "$IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; then
+  die "Invalid IP address: $IP"
+fi
+
+if [[ -n "$TARGET_JAIL" ]]; then
+  _green "Unbanning $IP from jail '$TARGET_JAIL'..."
+  run_f2b set "$TARGET_JAIL" unbanip "$IP" || die "Failed to unban IP from $TARGET_JAIL"
+  _green "Done."
+  exit 0
+fi
+
+# No jail specified → iterate all jails and unban where present
+JAILS="$(run_f2b status | awk -F':' '/Jail list/{gsub(/^[ \t]+/, "", $2); gsub(/, */, " ", $2); print $2}')"
+[[ -z "$JAILS" ]] && die "No jails found."
+
+FOUND=0
+for jail in $JAILS; do
+  if run_f2b status "$jail" | grep -q -- "$IP"; then
+    _green "IP $IP appears in jail '$jail' – unbanning..."
+    if run_f2b set "$jail" unbanip "$IP"; then
+      _green "Unbanned from $jail"
+      FOUND=1
+    else
+      _red "Failed to unban from $jail"
+    fi
+  fi
+done
+
+if [[ $FOUND -eq 0 ]]; then
+  _yellow "IP $IP was not found in any jail."
+fi

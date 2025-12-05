@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/common.sh
+. "$SCRIPT_DIR/../lib/common.sh"
+
+require_cmd fail2ban-client
+
+# Extract jail list in a clean way
+JAILS="$(run_f2b status | awk -F':' '/Jail list/{gsub(/^[ \t]+/, "", $2); gsub(/, */, " ", $2); print $2}')"
+
+if [[ -z "$JAILS" ]]; then
+  _yellow "No jails found."
+  exit 0
+fi
+
+_green "Jails:"
+for jail in $JAILS; do
+  echo " - $jail"
+done
